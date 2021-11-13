@@ -1,1 +1,0 @@
-{"User": {"Fields": ["'user_id' INTEGER NOT NULL  UNIQUE", "'username' TEXT NOT NULL  UNIQUE", "'f_name' TEXT NOT NULL  ", "'m_name' TEXT   ", "'l_name' TEXT NOT NULL  "]}}
