@@ -1,7 +1,5 @@
 import json
 import os
-# import sys
-# import json
 
 lisa_dir = os.getcwd() + '/lisa/'
 migrations_dir = lisa_dir + '/migrations/'
@@ -50,7 +48,8 @@ def make_migrations():
                             query = json.load(json_file)
                             table_name = list(query.keys())[0]
                             fields = query[table_name]
-                            sql_query += f"'{table_name}'(\n\t\t\t\t'id' INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,\n"
+                            sql_query += f"'{table_name}'(\n\t\t\t\t'id'" \
+                                         f" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,\n"
 
                             for field_name, field_query in fields.items():
 
@@ -66,7 +65,7 @@ def make_migrations():
                             with open(migrations_dir + current_migration_file, 'a') as migrations_file:
                                 migrations_file.writelines(migration_query)
                             # print(sql_query)
-                            os.remove(lisa_dir+ '/json/' + table)
+                            os.remove(lisa_dir + '/json/' + table)
                     else:
                         pass
 
@@ -80,4 +79,5 @@ def make_migrations():
         print('No changes detected.\nif you made some changes please be sure to run models.py')
 
 
-make_migrations()
+if __name__ == '__main__':
+    make_migrations()
