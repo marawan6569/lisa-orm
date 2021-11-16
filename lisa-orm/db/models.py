@@ -1,6 +1,6 @@
 import os
 import json
-# from lisa_settings import PATH
+
 
 fields = [
     # {'AutoField': 'It An IntegerField that automatically increments.'},
@@ -175,39 +175,7 @@ class DateTimeField(Field):
         return f""" {self.type} {self.null} {self.default} {self.unique}"""
 
 
-class TestModel(metaclass=ModelMeta):
-    table_name = 'test_model'
+class Users(metaclass=ModelMeta):
+    table_name = 'users'
 
-    char = CharField(max_length=30, null=True)
-    integer = IntegerField(unique=True)
-    boolean = BooleanField()
-    text = TextField(default='no text')
-    date = DateField(auto_add=True)
-    datetime = DateTimeField()
-
-
-class TestModel1(metaclass=ModelMeta):
-    table_name = 'test_model_1'
-
-    integer = IntegerField(unique=True)
-    boolean = BooleanField()
-    datetime = DateTimeField()
-
-
-class TestModel2(metaclass=ModelMeta):
-    table_name = 'test_model_2'
-
-    char = CharField(max_length=30, null=True)
-    integer = IntegerField(unique=True)
-    boolean = BooleanField()
-    date = DateField(auto_add=True)
-    datetime = DateTimeField()
-
-
-class TestModel3(metaclass=ModelMeta):
-    table_name = 'test_model_3'
-
-    boolean = BooleanField()
-    text = TextField(default='no text')
-    date = DateField(auto_add=True)
-    datetime = DateTimeField()
+    username = CharField(max_length=30)

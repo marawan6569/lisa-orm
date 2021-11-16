@@ -44,4 +44,5 @@ def migrate():
             print(new_name)
 
 
-migrate()
+if __name__ == '__main__':
+    migrate()
