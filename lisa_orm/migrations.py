@@ -39,9 +39,11 @@ def make_migrations():
 
         if os.path.isdir(json_dir):
             tables = list(os.listdir(json_dir))
+            print('----------' + ' making migrations had started. ' + '----------')
             if tables is not None:
 
                 for table in tables:
+                    print(f'\t[*] making migrations for {table}...')
                     sql_query = f"""\t\t\tCREATE TABLE IF NOT EXISTS  """
                     if table.endswith('.json'):
                         with open(json_dir + '/' + table, 'r') as json_file:
@@ -51,6 +53,7 @@ def make_migrations():
                             sql_query += f"'{table_name}'(\n\t\t\t\t'id'" \
                                          f" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,\n"
 
+                            print(f'\t\t - creating query for table: {table_name}...')
                             for field_name, field_query in fields.items():
 
                                 sql_query += f"\t\t\t\t'{field_name}' {field_query},\n"
@@ -66,13 +69,18 @@ def make_migrations():
                                 migrations_file.writelines(migration_query)
                             # print(sql_query)
                             os.remove(lisa_dir + '/json/' + table)
+                            print(f'\t\t- creating query for table {table_name} had finished.')
                     else:
                         pass
-
+                    print(f'\t[*] making migrations for {table} had finished')
+                    print(50 * '-')
                 with open(migrations_dir + current_migration_file, 'a') as migrations_file:
                     migrations_file.write('}\n')
+
             else:
                 print('No changes detected.\nif you made some changes please be sure to run models.py')
+            print('----------' + f' making migrations had finished. ' + '----------')
+
         else:
             print('No changes detected.\nif you made some changes please be sure to run models.py')
     else:

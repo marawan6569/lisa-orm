@@ -175,7 +175,5 @@ class DateTimeField(Field):
         return f""" {self.type} {self.null} {self.default} {self.unique}"""
 
 
-class Users(metaclass=ModelMeta):
-    table_name = 'users'
-
-    username = CharField(max_length=30)
+if __name__ == '__main__':
+    pass
