@@ -1,5 +1,6 @@
 import os
 import json
+import sqlite3
 
 
 fields = [
@@ -33,12 +34,26 @@ class ModelMeta(type):
     def __new__(mcs, *args, **kwargs):
         lisa_dir = os.getcwd() + '/lisa/'
         name = args[0]
-        table_name = args[2]['table_name'] or name
+        table_name = args[2]['table_name']
         sql_query = {
             table_name: {
 
             }
         }
+        lisa_table = 'lisa_tables_fields'
+        lisa_table_sql_query = f"""CREATE TABLE  IF NOT EXISTS '{lisa_table}'(
+            'field' VARCHAR(50) NOT NULL UNIQUE,
+             'type' VARCHAR(30) NOT NULL,
+             'is_null' BOOLEAN,
+             'is_unique' BOOLEAN,
+             'default' TEXT,
+             'max_length' INTEGER         
+         ); """
+        conn = sqlite3.connect('db.sqlite3')
+        cur = conn.cursor()
+        cur.execute(lisa_table_sql_query)
+        conn.commit()
+        conn.close()
         attrs = dict(args[2])
         for key, value in attrs.items():
             if key.startswith('__') or key == 'table_name':
@@ -46,6 +61,37 @@ class ModelMeta(type):
             else:
                 sql_query[table_name].update({key: value.create_query().strip()})
 
+                field_name = key
+                field_type = value.type
+                if value.null == 'NOT NULL':
+                    is_null = 0
+                else:
+                    is_null = 1
+                if value.unique == 'UNIQUE':
+                    is_unique = 1
+                else:
+                    is_unique = 0
+                default_value = value.default
+                if hasattr(value, 'max_length'):
+                    max_len = value.max_length
+                    q = f"""INSERT INTO '{lisa_table}'
+                        ('field', 'type', 'is_null', 'is_unique', 'default', 'max_length')
+                        VALUES
+                        ('{table_name}__{field_name}', '{field_type}', {is_null}, {is_unique}, '{default_value}', 
+                        {max_len});"""
+                else:
+                    q = f"""INSERT INTO '{lisa_table}'
+                        ('field', 'type', 'is_null', 'is_unique', 'default')
+                        VALUES
+                        ('{table_name}__{field_name}', '{field_type}', {is_null}, {is_unique}, '{default_value}');"""
+                try:
+                    conn = sqlite3.connect('db.sqlite3')
+                    cur = conn.cursor()
+                    cur.execute(q)
+                    conn.commit()
+                    conn.close()
+                except sqlite3.IntegrityError:
+                    pass
         if os.path.isdir(lisa_dir):
             pass
         else:

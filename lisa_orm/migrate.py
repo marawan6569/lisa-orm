@@ -54,7 +54,6 @@ def migrate():
 
             new_name = migration_file_path[0:-3] + '_done.py'
             os.rename(migrations_path + migration_file_path, migrations_path + new_name)
-            print(new_name)
 
         print('-----------' + ' migrating had finished. ' + '-----------')
 
