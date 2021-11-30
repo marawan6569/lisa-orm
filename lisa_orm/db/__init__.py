@@ -1,4 +1,4 @@
-from lisa_orm.db.models import ModelMeta
+from lisa_orm.db.models import Model
 from lisa_orm.db.models import Field
 from lisa_orm.db.models import CharField
 from lisa_orm.db.models import IntegerField

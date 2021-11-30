@@ -1,6 +1,5 @@
 import sqlite3
 import json
-from lisa_orm.test import Test
 
 
 def __execute(query, one=False):
