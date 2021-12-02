@@ -1,116 +1,16 @@
-# import os
-# import json
 import sqlite3
 import inspect
-
-
-# fields = [
-#     # {'AutoField': 'It An IntegerField that automatically increments.'},
-#
-#     {'CharField': 'A field to store text based values.'},
-#     {'IntegerField': 'It is an integer field.'},
-#     {'BooleanField', 'A true/false field.'},
-#     {'FloatField': 'It is a floating-point number represented in Python by a float instance.'},
-#     {'TextField	': 'A large text field.'},
-#     {'DateField': 'A date, represented in Python by a datetime.date instance'},
-#     # {'TimeField	': 'A time, represented in Python by a datetime.time instance.'},
-#     {'DateTimeField': 'date and time field'},
-#
-#
-#     {'ForeignKey': 'A many-to-one relationship. Requires two positional arguments:'
-#                    ' the class to which the model is related and the on_delete option.'},
-#
-#     {'ManyToManyField': 'A many-to-many relationship. Requires a positional argument:'
-#                         ' the class to which the model is related,'
-#                         ' which works exactly the same as it does for ForeignKey,'
-#                         ' including recursive and lazy relationships.'},
-#
-#     {'OneToOneField': 'A one-to-one relationship. Conceptually,'
-#                       ' this is similar to a ForeignKey with unique=True,'
-#                       ' but the “reverse” side of the relation will directly return a single object.'},
-# ]
-
-
-# class ModelMeta(type):
-#     def __new__(mcs, *args, **kwargs):
-#         lisa_dir = os.getcwd() + '/lisa/'
-#         name = args[0]
-#         table_name = args[2]['table_name']
-#         sql_query = {
-#             table_name: {
-#
-#             }
-#         }
-#         lisa_table = 'lisa_tables_fields'
-#         lisa_table_sql_query = f"""CREATE TABLE  IF NOT EXISTS '{lisa_table}'(
-#             'field' VARCHAR(50) NOT NULL UNIQUE,
-#              'type' VARCHAR(30) NOT NULL,
-#              'is_null' BOOLEAN,
-#              'is_unique' BOOLEAN,
-#              'default' TEXT,
-#              'max_length' INTEGER
-#          ); """
-#         conn = sqlite3.connect('db.sqlite3')
-#         cur = conn.cursor()
-#         cur.execute(lisa_table_sql_query)
-#         conn.commit()
-#         conn.close()
-#         attrs = dict(args[2])
-#         for key, value in attrs.items():
-#             if isinstance(key, Field):
-#                 sql_query[table_name].update({key: value.create_query().strip()})
-#
-#                 field_name = key
-#                 field_type = value.type
-#                 if value.null == 'NOT NULL':
-#                     is_null = 0
-#                 else:
-#                     is_null = 1
-#                 if value.unique == 'UNIQUE':
-#                     is_unique = 1
-#                 else:
-#                     is_unique = 0
-#                 default_value = value.default
-#                 if hasattr(value, 'max_length'):
-#                     max_len = value.max_length
-#                     q = f"""INSERT INTO '{lisa_table}'
-#                         ('field', 'type', 'is_null', 'is_unique', 'default', 'max_length')
-#                         VALUES
-#                         ('{table_name}__{field_name}', '{field_type}', {is_null}, {is_unique}, '{default_value}',
-#                         {max_len});"""
-#                 else:
-#                     q = f"""INSERT INTO '{lisa_table}'
-#                         ('field', 'type', 'is_null', 'is_unique', 'default')
-#                         VALUES
-#                         ('{table_name}__{field_name}', '{field_type}', {is_null}, {is_unique}, '{default_value}');"""
-#                 try:
-#                     conn = sqlite3.connect('db.sqlite3')
-#                     cur = conn.cursor()
-#                     cur.execute(q)
-#                     conn.commit()
-#                     conn.close()
-#                 except sqlite3.IntegrityError:
-#                     pass
-#         if os.path.isdir(lisa_dir):
-#             pass
-#         else:
-#             os.mkdir(lisa_dir)
-#         if os.path.isdir(lisa_dir + 'json/'):
-#             pass
-#         else:
-#             os.mkdir(lisa_dir + 'json/')
-#
-#         with open(lisa_dir + 'json/' + name + '.json', 'w+') as json_file:
-#             json.dump(sql_query, json_file)
-#
-#         return type(*args, **kwargs)
 
 
 class DB:
     def __init__(self, path):
         self.conn = sqlite3.connect(path)
 
-    def _execute(self, query):
+    def _execute(self, query, params=None):
+        if params:
+            return self.conn.execute(query, params)
+
+        print(query)
         return self.conn.execute(query)
 
     def _tables(self):
@@ -131,18 +31,39 @@ class DB:
         _query = f"DROP TABLE IF EXISTS '{model.get_name()}';"
         return self._execute(_query)
 
+    def save(self, instance):
+        _query, _values = instance.get_insert_query()
+        cursor = self._execute(_query, _values)
+        instance._data['id'] = cursor.lastrowid
+        self.conn.commit()
+
 
 class Model:
     def __init__(self, **kwargs):
-        pass
+        self._data = {
+            'id': None
+        }
+        for key, value in kwargs.items():
+            self._data[key] = value
+
+    def __getattribute__(self, key):
+        _data = object.__getattribute__(self, '_data')
+        if key in _data:
+            return _data[key]
+        return object.__getattribute__(self, key)
 
     @classmethod
     def get_fields(cls):
-        _fields = []
+        _fields = [
+            {'id': 'INTEGER PRIMARY KEY AUTOINCREMENT'}
+        ]
         members = inspect.getmembers(cls)
         for member in members:
             if isinstance(member[1], Field):
                 _fields.append({member[0]: member[1].create_query})
+
+            elif isinstance(member[1], ForeignKey):
+                _fields.append({f'{member[0]}__id': member[1].create_query})
 
         return _fields
 
@@ -151,6 +72,28 @@ class Model:
         if hasattr(cls, 'table_name'):
             return cls.table_name
         return cls.__name__.lower()
+
+    def get_insert_query(self):
+        _fields = []
+        _values = []
+        _placeholders = []
+        cls = self.__class__
+        for name, field in inspect.getmembers(cls):
+            if isinstance(field, Field):
+                _fields.append(name)
+                _values.append(self._data[name])
+                _placeholders.append('?')
+            elif isinstance(field, ForeignKey):
+                _fields.append(f'{name}__id')
+                _values.append(self._data[name].id)
+                _placeholders.append('?')
+
+        _insert_query = "INSERT INTO '{table}' ({fields}) VALUES ({placeholders});"\
+            .format(table=self.get_name(),
+                    fields=", ".join(_fields),
+                    placeholders=", ".join(_placeholders))
+
+        return _insert_query, _values
 
 
 class Field(object):
@@ -171,6 +114,8 @@ class Field(object):
         else:
             self.default = f"DEFAULT '{default}'"
 
+        self.type = None
+
     @property
     def create_query(self):
         return f""" {self.type} {self.null} {self.default} {self.unique}""".strip()
@@ -178,7 +123,7 @@ class Field(object):
 
 # ---------------- Fields -------------------#
 class CharField(Field):
-    """"
+    """
     CharField is A field to store text based values.
     """
 
@@ -252,6 +197,17 @@ class DateTimeField(Field):
         self.type = 'DATETIME'
         self.auto_add = auto_add
         super().__init__(unique, null, default)
+
+
+# relations:
+class ForeignKey:
+    def __init__(self, model):
+        # self.model = model
+        pass
+
+    @property
+    def create_query(self):
+        return "INTEGER"
 
 
 if __name__ == '__main__':
