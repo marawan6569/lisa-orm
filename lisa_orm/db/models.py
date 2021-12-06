@@ -10,7 +10,6 @@ class DB:
         if params:
             return self.conn.execute(query, params)
 
-        print(query)
         return self.conn.execute(query)
 
     def _tables(self):
@@ -28,8 +27,12 @@ class DB:
         self._execute(_query)
 
     def drop(self, model):
-        _query = f"DROP TABLE IF EXISTS '{model.get_name()}';"
-        return self._execute(_query)
+        _tables = self._tables()
+        if model.get_name() in _tables:
+            _query = f"DROP TABLE IF EXISTS '{model.get_name()}';"
+            return self._execute(_query)
+        else:
+            return f'no such table with this name {model.get_name}'
 
     def save(self, instance):
         _query, _values = instance.get_insert_query()
@@ -94,6 +97,60 @@ class Model:
                     placeholders=", ".join(_placeholders))
 
         return _insert_query, _values
+
+    def get_search_query(self, **kwargs):
+        _fields = ['id']
+        _conditions = []
+        _params = []
+        _search_fields = []
+        cls = self.__class__
+
+        for key in kwargs.keys():
+            if hasattr(self, key):
+                _search_fields.append(key)
+                if key == 'id':
+                    if type(kwargs['id']) == int:
+                        _conditions.append('id=?')
+                        _params.append(kwargs['id'])
+                    else:
+                        print('id value must be integer')
+                        return None
+            elif hasattr(self, key[:-4]):
+                _search_fields.append(key)
+            else:
+                print(f'{key} is not a field')
+                return None
+
+        for name, field in inspect.getmembers(cls):
+            if isinstance(field, Field):
+                _fields.append(name)
+                if name in _search_fields:
+                    _conditions.append(f'{name}=?')
+                    _params.append(kwargs[name])
+            elif isinstance(field, ForeignKey):
+                _fields.append(f'{name}__id')
+                if name in _search_fields:
+                    _conditions.append(f'{name}__id=?')
+                    _params.append(kwargs[name].id)
+                elif f'{name}__id' in _search_fields:
+                    if type(kwargs[f'{name}__id']) == int:
+                        _conditions.append(f'{name}__id=?')
+                        _params.append(kwargs[f'{name}__id'])
+                    else:
+                        print('ForeignKey value must be integer')
+                        return None
+
+        _search_query = "SELECT ({fields}) FROM '{table_name}' WHERE {conditions};"\
+            .format(
+                fields=', '.join(_fields),
+                table_name=cls.get_name(),
+                conditions=' AND '.join(_conditions)
+            )
+
+        print('search query: ', _search_query)
+        print('search fields: ', _search_fields)
+        print('conditions: ', _conditions)
+        print('params: ', _params)
 
 
 class Field(object):
