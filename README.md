@@ -1,5 +1,6 @@
 # lisa-orm
-Lisa is an ORM semi like django ORM:
+Lisa is an ORM
+![lisa orm image](https://ik.imagekit.io/marwan6569/lisa_5-IszHzlp.png?updatedAt=1639002695231)
 
 ### Available fields now:
     - CharField()
