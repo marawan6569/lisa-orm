@@ -1,4 +1,4 @@
-**__# lisa-orm
+# lisa-orm
 Lisa is an ORM semi like django ORM:
 
 ### Available fields now:
@@ -10,167 +10,129 @@ Lisa is an ORM semi like django ORM:
     - DateField() -> not fully ready
     - DateTimeField() -> not fully ready
 
-### Available actions now:
-    - add() -> to add recordes to DB
-    - drop() -> to drop tables(models)
-    - delete_field() -> to delete fields
+### How to use lisa-orm:
 
-### Available search methods:
-    - get_all() -> to return all records in DB
-    - get() -> to return specific record in DB 
-        - not finshed yet (only geting first record in DB now)
-<hr>
-
-#### [>> github](https://github.com/marawan6569/lisa-orm)
-#### [>> my linked in](https://www.linkedin.com/in/marwan6569/)
-#### [>> my linktr.ee](https://linktr.ee/marawan6569)
-#### [>> my facebook](https://www.facebook.com/marwanmo7amed8)
-#### [>> my twitter](https://twitter.com/Marwan_Mo7amed_)
-#### [>> my instagram](https://www.instagram.com/marwan_mohamed_0_0/)
-<hr>
-
-# Getting started:
-
-
-
-## First: create your model:
-  - create python file ex: ```my_model.py``` and write your model into it
+- Let's connect to database first:
 ```python
+# Importing models
 from lisa_orm.db import models
 
+# Path to database
+db_path = 'db.sqlite3'
 
-class MyModel(metaclass=models.ModelMeta):
-  table_name = 'my_table_name' # -> Name your model it's mandatory
-  
-  my_field_one = models.CharField(max_length=40, null=True)
-  my_field_two = models.IntegerField(unique=True)
+# Connect to database:
+db = models.DB(db_path)
 ```
-  - then run your model by ```pythonX my_model.py ``` 
-  - X is python version
- 
- ## Second: make migrations:
-   - create new file name it ```make_migrations.py``` 
-   - or name it anything you want
-   - write into it:
-  ```python
-from lisa_orm.migrations import make_migrations
+
+- Ok now we are connected to database.
+- let's create our models:
+```python 
+  # Create basic system to manage classes and students 
   
+  # Create classes model
+  class SchoolClass(models.Model):
+    table_name = 'classes'
+    class_name = models.CharField(max_length=30, unique=True)
+    
+    def __str__(self):
+        return self.name
+    
   
-make_migrations()
-  ```
-  - just run your  ```make_migrations.py``` 
-  - by ```pythonX make_migrations.py```
-
-## Third: migrate your model:
-- create file ```migrate.py```
-- or anything you want
-- and write into it:
-```python
-from lisa_orm.migrate import migrate
-
-
-migrate()
-```
-- run you ```migrate.py``` 
-- by ```pythonX migrate.py```
-
-## Note: I will make ```manage.py``` to make_migrations and migrate and some other actions (إن شاء الله)
-
-<hr>
-
-## Congratulations, you have just created your first model 😊
-
-<hr>
-
-# Now you can edit and add data and edit your model
-
-- ## let's add some data:
-```python
-from lisa_orm.actions import add
-from my_model import MyModel
-
-
-add(
-  model=MyModel,
-  my_field_one = 'hello world!',
-  my_field_two = 20
-  )
-  
-add(
-  model=MyModel,
-  my_field_one = 'i love python',
-  my_field_two = 50
-  )
-  
-add(
-  model=MyModel,
-  my_field_one = 'i love lisa',
-  my_field_two = 100
-  )
-```
-- now run your file ```pythonX run your_file.py```
-- you should see this output :
+  # Create students model
+  class Student(models.Model):
+    table_name = 'students'
+    student_name = models.CharField(max_length=60)
+    student_age = models.IntegerField()
+    student_gender = models.BooleanField() # 1 for male and 0 for female
+    student_class = models.ForeignKey(SchoolClass)
+    
+    def __str__(self):
+      return self.name
  ```
- data added successfully
- data added successfully
- data added successfully
- ```
- 
- - you can delete a field from your model ... lets do it
- ```python
-from lisa_orm.actions import delete_field
-from my_model import MyModel
- 
- 
-delete_field(
-    model=MyModel,
-    field_name='my_field_two'
- )
- ```
- - run your file
- - you should see this output:
- ```deleted field my_field_two successfully```
-
-
-- And yo can drop your model also:
+- Now we just defined the models. 
+- We should apply them to database.
 ```python
-from lisa_orm.actions import drop
-from my_model import MyModel
-
-drop(model=MyModel)
+db.create(SchoolClass)
+db.create(Student)
 ```
-- run your file and you should see this output:
-```
-deleted model MyModel successfully
-```
-
-<hr>
-
-# Let's get our data:
-- ## you can get your all data by get_all():
+- Congratulations. now you have two tables in database
+- Let's add some data to our SchoolClass model:
 ```python
-from lisa_orm.search import get_all
-from my_model import MyModel
+# create instances of SchoolClass
+class_1 = SchoolClass(class_name='1-1')
+class_2 = SchoolClass(class_name='1-2')
+class_3 = SchoolClass(class_name='1-3')
 
-my_data_as_dict = get_all(model=MyModel)
-my_data_as_json = get_all(model=MyModel, export_to_json=True)
-
-# by default get_all and all methods in search  returns fetched data as a dict 
-# but you can get data as json by passing export_to_json=True
+# saving them
+db.save(class_1)
+db.save(class_2)
+db.save(class_3)
 ```
-- ## you can also get 1 record from DB with get():
+- add data to Student model:
 ```python
-from lisa_orm.search import get
-from my_model import MyModel
+# we can add data to foreignkey with to method:
+# first: field_name__id=id. in our case will be:
+# student_class__id=1
+# the second is adding by reference field_name=instance
+# in our case will be: student_class=class_1
+# let's start:
 
-my_data_as_dict = get(model=MyModel)
-my_data_as_json = get(model=MyModel, export_to_json=True)
+# first we should get class that FK will reference to
+class_1 = db.get(SchoolClass, id=1)
 
-# it is like get_all()
-# It's not finished yet ... it is return only first record on DB
+# creating instances of Student
+ahmed = Student(
+  student_name='ahmed mohamed',
+  student_age=19,
+  student_gender=1,
+  student_class=class_1
+)
+
+marwan = Student(
+  student_name='marwan mohamed',
+  student_age=19,
+  student_gender=1,
+  student_class=class_1
+)
+
+asmaa = Student(
+  student_name='asmaa ahmed',
+  student_age=16,
+  student_gender=0,
+  student_class=class_1
+)
+
+# saving them
+db.save(ahmed)
+db.save(marwan)
+db.save(asmaa)
 ```
+- Now we have data in our database.
+- let's get it:
+```python
+# get one recorde
+one_rec_1 = db.get(Student, id=1)
+one_rec_2 = db.get(Student, student_name='marwan mohamed')
+one_rec_3 = db.get(Student, id=1, student_name='ahmed mohamed')
+# get return result as object of model (Student)
 
-<hr>
+# filter data
+filtered = db.filter(Student, student_age=19)
+# filter return result as list of objects of model (Student)
+```
+- We can access values by reference:
+```python
+results = db .filter(Student, student_age=19)
+if results: # to check if results not None
+    for res in results:
+        print(f'name: {res.student_name} | class: {res.student_class.class_name}')
 
-
-# بس دي كل حاجة حتى الأن (:
+# Output:
+# name: ahmed mohamed | class: 1-1
+# name: marwan mohamed | class: 1-1
+```
+- We can delete models by:
+```python
+db.drop(SchoolClass)
+db.drop(Student)
+```

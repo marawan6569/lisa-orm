@@ -37,20 +37,81 @@ class DB:
     def save(self, instance):
         _query, _values = instance.get_insert_query()
         cursor = self._execute(_query, _values)
-        instance._data['id'] = cursor.lastrowid
+        instance.data['id'] = cursor.lastrowid
         self.conn.commit()
+
+    # Search
+    def get(self, model, **kwargs):
+        if kwargs:
+            _search_query, _params, _fields = model.get_search_query(**kwargs)
+            _result = self._execute(_search_query, _params).fetchone()
+            if _result:
+                _result = dict(zip(_fields, _result))
+                return model(**self._get_foreignkey(model, _result))
+            else:
+                return None
+        else:
+            print('you should pass field name and its value like:\n\tid=1 ')
+
+    def filter(self, model, **kwargs):
+
+        if kwargs:
+            _results = []
+            _search_query, _params, _fields = model.get_search_query(**kwargs)
+            _result_list = self._execute(_search_query, _params).fetchall()
+
+            if not _result_list:
+                return None
+
+            for _result in _result_list:
+                _result = dict(zip(_fields, _result))
+                _results.append(model(**self._get_foreignkey(model, _result)))
+
+            return _results
+
+        else:
+            print('you should pass field name and its value like:\n\tid=1 ')
+
+    def all(self, model):
+        _results = []
+        _search_query, _fields = model.get_search_query()
+        _result_list = self._execute(_search_query).fetchall()
+
+        if not _result_list:
+            return None
+
+        for _result in _result_list:
+            _result = dict(zip(_fields, _result))
+            _results.append(model(**self._get_foreignkey(model, _result)))
+
+        return _results
+
+    def _get_foreignkey(self, model, result_dict: dict):
+
+        for key in result_dict.keys():
+            if key.endswith('__id'):
+                fk_id = int(result_dict[key])
+                fk_model = getattr(model, key[:-4]).model
+                fk_value = self.get(fk_model, id=fk_id)
+                result_dict.pop(key)
+                result_dict[key[:-4]] = fk_value
+
+            else:
+                continue
+
+        return result_dict
 
 
 class Model:
     def __init__(self, **kwargs):
-        self._data = {
+        self.data = {
             'id': None
         }
         for key, value in kwargs.items():
-            self._data[key] = value
+            self.data[key] = value
 
     def __getattribute__(self, key):
-        _data = object.__getattribute__(self, '_data')
+        _data = object.__getattribute__(self, 'data')
         if key in _data:
             return _data[key]
         return object.__getattribute__(self, key)
@@ -84,11 +145,11 @@ class Model:
         for name, field in inspect.getmembers(cls):
             if isinstance(field, Field):
                 _fields.append(name)
-                _values.append(self._data[name])
+                _values.append(self.data[name])
                 _placeholders.append('?')
             elif isinstance(field, ForeignKey):
                 _fields.append(f'{name}__id')
-                _values.append(self._data[name].id)
+                _values.append(self.data[name].id)
                 _placeholders.append('?')
 
         _insert_query = "INSERT INTO '{table}' ({fields}) VALUES ({placeholders});"\
@@ -98,24 +159,25 @@ class Model:
 
         return _insert_query, _values
 
-    def get_search_query(self, **kwargs):
+    # Search
+    @classmethod
+    def get_search_query(cls, **kwargs):
         _fields = ['id']
         _conditions = []
         _params = []
         _search_fields = []
-        cls = self.__class__
 
         for key in kwargs.keys():
-            if hasattr(self, key):
+            if hasattr(cls, key):
                 _search_fields.append(key)
-                if key == 'id':
-                    if type(kwargs['id']) == int:
-                        _conditions.append('id=?')
-                        _params.append(kwargs['id'])
-                    else:
-                        print('id value must be integer')
-                        return None
-            elif hasattr(self, key[:-4]):
+            elif key == 'id':
+                if type(kwargs['id']) == int:
+                    _conditions.append('id=?')
+                    _params.append(kwargs['id'])
+                else:
+                    print('id value must be integer')
+                    return None
+            elif hasattr(cls, key[:-4]):
                 _search_fields.append(key)
             else:
                 print(f'{key} is not a field')
@@ -140,17 +202,23 @@ class Model:
                         print('ForeignKey value must be integer')
                         return None
 
-        _search_query = "SELECT ({fields}) FROM '{table_name}' WHERE {conditions};"\
-            .format(
-                fields=', '.join(_fields),
-                table_name=cls.get_name(),
-                conditions=' AND '.join(_conditions)
-            )
+        if kwargs:
+            _search_query = "SELECT {fields} FROM '{table_name}' WHERE {conditions};"\
+                .format(
+                    fields=', '.join(_fields),
+                    table_name=cls.get_name(),
+                    conditions=' AND '.join(_conditions)
+                )
 
-        print('search query: ', _search_query)
-        print('search fields: ', _search_fields)
-        print('conditions: ', _conditions)
-        print('params: ', _params)
+            return _search_query, _params, _fields
+
+        else:
+            _search_query = "SELECT {fields} FROM '{table_name}';"\
+                .format(
+                    fields=', '.join(_fields),
+                    table_name=cls.get_name(),
+                )
+            return _search_query, _fields
 
 
 class Field(object):
@@ -259,8 +327,7 @@ class DateTimeField(Field):
 # relations:
 class ForeignKey:
     def __init__(self, model):
-        # self.model = model
-        pass
+        self.model = model
 
     @property
     def create_query(self):
